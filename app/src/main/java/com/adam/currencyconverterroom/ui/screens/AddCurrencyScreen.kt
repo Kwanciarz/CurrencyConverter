@@ -1,6 +1,5 @@
 package com.adam.currencyconverterroom.ui.screens
 
-import android.util.Log
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,7 +11,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,27 +18,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import com.adam.currencyconverterroom.data.CurrencyViewModel
 import com.adam.currencyconverterroom.data.CurrencyWithName
-import kotlinx.coroutines.launch
 
 @Composable
 fun AddCurrencyScreen(viewModel: CurrencyViewModel, navController: NavHostController) {
-    val listOfCurrenciesFromWeb by viewModel.getAllAvailableCurrencies.collectAsState(initial = emptyList())
-    val addedCurrencies by viewModel.getListOfSelectedCodes().collectAsState(initial = emptyList())
-    var listOfCurrenciesToAdd by remember { mutableStateOf(listOf<String>()) }
+    viewModel.fetchAllAvailableCurrencies()
+    var listOfCurrenciesToAddState = viewModel.availableCurrencies.collectAsState()
+    var listOfCurrenciesToAdd by remember { mutableStateOf(listOfCurrenciesToAddState.value.toMutableList()) }
+    val listOfExistingCurrencies by viewModel.codes.collectAsState(initial = emptyList())
     var searchText by remember { mutableStateOf("") }
-//    LaunchedEffect(Unit) {
-//        viewModel.getAllAvailableCurrencies.collect { currencies ->
-//            listOfCurrenciesFromWeb = currencies.filter {
-//                it.base !in listOfCurrenciesToAdd &&
-//                        it.base !in addedCurrencies.map { it.base }
-//            }.sortedBy { it.base }
-//            Log.v("Add", currencies.toString())
-//        }
-//    }
+    var currenciesToAdd by remember { mutableStateOf(listOf<CurrencyWithName>())}
+    
     Column {
         // Text Field for Search
         TextField(
@@ -53,35 +43,29 @@ fun AddCurrencyScreen(viewModel: CurrencyViewModel, navController: NavHostContro
         )
         // Filtered List
         ListOfCurrencies(
-            currencies = if (searchText.isBlank()) {
-                listOfCurrenciesFromWeb // Show the entire list
-            } else {
-                listOfCurrenciesFromWeb.filter {
-                    it.base.contains(searchText, ignoreCase = true) ||
-                            it.name.contains(searchText, ignoreCase = true)
-                }
-            },
-            addedCurrencies.map { it.base },
             listOfCurrenciesToAdd,
-            onCurrencyAdded = {
+          
+            listOfExistingCurrencies,
+            currenciesToAdd.map{it.base},
+            {
                 listOfCurrenciesToAdd += it
-            }
+            },
         )
     }
-    
-    
-    DisposableEffect(Unit) {
-        onDispose {
-            if (listOfCurrenciesToAdd.isNotEmpty()) {
-                viewModel.viewModelScope.launch {
-                    viewModel.fetchDataForNewEntries(
-                        addedCurrencies.map { it.base },
-                        listOfCurrenciesToAdd
-                    )
-                }
-            }
-        }
-    }
+
+
+//    DisposableEffect(Unit) {
+////        onDispose {
+////            if (listOfCurrenciesToAdd.isNotEmpty()) {
+////                viewModel.viewModelScope.launch {
+////                    viewModel.fetchDataForNewEntries(
+////                        addedCurrencies.map { it.base },
+////                        listOfCurrenciesToAdd
+////                    )
+////                }
+////            }
+////        }
+//    }
 }
 
 

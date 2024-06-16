@@ -5,10 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.adam.currencyconverterroom.data.ChosenCurrency
 import com.adam.currencyconverterroom.data.CurrencyWithRate
-import com.adam.currencyconverterroom.data.NetworkMetadata
-import com.adam.currencyconverterroom.data.Selected
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -16,7 +13,7 @@ import kotlinx.coroutines.launch
  * Database class with a singleton Instance object.
  */
 @Database(
-    entities = [ChosenCurrency::class, CurrencyWithRate::class, Selected::class, NetworkMetadata::class],
+    entities = [CurrencyWithRate::class],
     version = 1,
     exportSchema = false
 )
@@ -53,28 +50,18 @@ abstract class CurrencyDatabase : RoomDatabase() {
         }
         
         suspend fun populateDatabase(dao: CurrencyDao) {
-            dao.insertMetadata(NetworkMetadata(0,"1970-01-01"))
-            dao.addCurrenciesToListOfSelected(
-                listOf(
-                    ChosenCurrency("PLN"),
-                    ChosenCurrency("EUR"),
-                    ChosenCurrency("USD")
-                )
-            )
-            dao.selectCode(Selected(0, "PLN"))
             dao.addRates(
                 listOf(
                     CurrencyWithRate("PLN", "USD",0.0),
-                    CurrencyWithRate("PLN", "EUR",0.0),
+//                    CurrencyWithRate("PLN", "EUR",0.0),
                     
-                    CurrencyWithRate("EUR", "PLN",0.0),
-                    CurrencyWithRate("EUR", "USD",0.0),
+//                    CurrencyWithRate("EUR", "PLN",0.0),
+//                    CurrencyWithRate("EUR", "USD",0.0),
                     
                     CurrencyWithRate("USD", "PLN",0.0),
-                    CurrencyWithRate("USD", "EUR",0.0),
+//                    CurrencyWithRate("USD", "EUR",0.0),
                 )
             )
-            
         }
     }
 }

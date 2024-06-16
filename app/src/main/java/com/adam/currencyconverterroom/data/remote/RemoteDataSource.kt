@@ -60,27 +60,7 @@ class RemoteDataSource {
             Result.failure(e)
         }
     }
-   /*
-   * old PLN,USD,EUR
-   * new GBP,CZK
-   *
-   * in database
-   * pln - usd
-   * pln - eur
-   * usd- pln
-   * usd - eur
-   * eur- pln
-   * eur- usd
-   *
-   * Need to add
-   * GPB - [PLN,USD,EUR,CZK]
-   * CZK - [PLN,USD,EUR,GBP]
-   *
-   * PLN - [GBP,CZK]
-   * USD - [GBP,CZK]
-   * EUR- [GBP,CZK]
-   *
-   * */
+
     suspend fun fetchForExistingRates(oldCodes: List<String>, newCodes: List<String>): Result<List<NetworkCurrencyWithRates>> {
         return try {
             val resultList = mutableListOf<NetworkCurrencyWithRates>()

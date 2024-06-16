@@ -1,5 +1,6 @@
 package com.adam.currencyconverter.ui.screens
 
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,30 +26,41 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import com.adam.currencyconverterroom.data.CurrencyViewModel
 import com.adam.currencyconverterroom.data.CurrencyWithRate
 import com.adam.currencyconverterroom.data.remote.ConnectivityRepository
-import kotlinx.coroutines.launch
 import java.util.Locale
 
 @Composable
 fun MainScreen(viewModel: CurrencyViewModel, navController: NavHostController) {
-    val selectedCurrency by viewModel.selectedCurrency.collectAsState()
 //    val rates by viewModel.ratesForSelectedCurrency.collectAsState()
-    var amount by remember {
+    var amount by rememberSaveable {
         mutableStateOf("10.0")
+    }
+    
+    var selectedCode by rememberSaveable {
+        mutableStateOf("PLN")
+    }
+    
+    val updateSelectedCode: (String) -> Unit = { newCode ->
+        selectedCode = newCode
+    }
+    LaunchedEffect(selectedCode) {
+        Log.v("HELP",selectedCode)
+        viewModel.updateSelectionOfRate(selectedCode)
     }
     var amountValue: Double? by remember { mutableStateOf(amount.toDoubleOrNull()) }
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -65,13 +77,10 @@ fun MainScreen(viewModel: CurrencyViewModel, navController: NavHostController) {
                     amount = cleanString
                     amountValue = amount.toDoubleOrNull()
                 })
-                Text(
-                    text = selectedCurrency.toString(),
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.align(Alignment.CenterVertically)
-                )
+                Text(selectedCode)
+                
             }
-            CurrencyList(amountValue, viewModel, navController)
+            CurrencyList(amountValue, viewModel, updateSelectedCode, navController)
         }
     }
 }
@@ -79,9 +88,16 @@ fun MainScreen(viewModel: CurrencyViewModel, navController: NavHostController) {
 @Composable
 fun CurrencyList(
 //    selectedCurrencyWithRates: QueryResult<CurrencyWithRates>,
-    amountValue: Double?, viewModel: CurrencyViewModel, navController: NavHostController
+    amountValue: Double?,
+    viewModel: CurrencyViewModel,
+    action: (String) -> Unit,
+    navController: NavHostController
 ) {
-    val rates by viewModel.ratesForSelectedCurrency.collectAsState(initial = emptyList())
+    
+    
+    val rates by viewModel.ratesBySelectedCode.collectAsState()
+    Log.v("HELP", rates.toString())
+    
     
     val connectivityRepository = ConnectivityRepository(LocalContext.current as ComponentActivity)
     val isOnline = connectivityRepository.isConnected.collectAsState(initial = false)
@@ -89,6 +105,7 @@ fun CurrencyList(
     ListOfCurrenciesOnSuccess(
         rates,
         amountValue,
+        action,
         viewModel,
         isOnline.value,
         navController
@@ -97,21 +114,23 @@ fun CurrencyList(
 
 @Composable
 fun ListOfCurrenciesOnSuccess(
-    items: List<CurrencyWithRate>,
+    rates: List<CurrencyWithRate>,
     amountValue: Double?,
+    action: (String) -> Unit,
     viewModel: CurrencyViewModel,
     isOnline: Boolean,
     navController: NavHostController
 ) {
     LazyColumn {
         this.items(
-            items
+            rates
         ) {
-            CurrencyRateItem(currency = it.target to it.rate, amount = amountValue, action = {
-                viewModel.selectCode(it.target)
-            }, onDismiss = {
-                viewModel.deleteCurrency(it.target)
-            })
+            CurrencyRateItem(
+                Pair(it.target, it.rate),
+                amountValue,
+                action,
+                {},
+            )
             
         }
         item {
@@ -139,9 +158,9 @@ fun AmountField(amount: String, onAmountChange: (String) -> Unit) {
 fun CurrencyRateItem(
     currency: Pair<String, Double>,
     amount: Double?,
-    modifier: Modifier = Modifier,
-    action: () -> Unit,
-    onDismiss: () -> Unit
+    action: (String) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
         elevation = CardDefaults.cardElevation(5.dp),
@@ -149,7 +168,7 @@ fun CurrencyRateItem(
         modifier = modifier
             .fillMaxWidth()
             .padding(16.dp),
-        onClick = action
+        onClick = { action(currency.first) }
     ) {
         Row(
             modifier = Modifier

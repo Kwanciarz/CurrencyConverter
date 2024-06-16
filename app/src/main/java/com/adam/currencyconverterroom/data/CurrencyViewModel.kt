@@ -5,15 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -23,8 +19,6 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
 class CurrencyViewModel(private val repository: CurrencyRepository) : ViewModel() {
-    
-    
     private fun isApiResponseOutdated(apiResponseDate: String): Boolean {
         // Parse the API response date
         val formatter = DateTimeFormatter.ISO_DATE
@@ -51,50 +45,48 @@ class CurrencyViewModel(private val repository: CurrencyRepository) : ViewModel(
     
     suspend fun fetchAndStoreAllRatesIfOutdated(/*listOfCodes: List<String>*/) =
         viewModelScope.launch {
-            
-            if (isApiResponseOutdated(repository.getDateOfQuery())) {
-                val listOfCodes = repository.getSelectedCodes().first().map { it.base }
-                Log.v("ViewModelFetch", listOfCodes.toString())
+            if (true) { //isApiResponseOutdated TODO check it
+                val listOfCodes = repository.getCodes().first()
+                Log.v(
+                    "ViewModelFetch",
+                    "List of codes while fetching data${listOfCodes.toString()}"
+                )
                 repository.fetchAndStoreAllRates(listOfCodes)
             }
         }
-    suspend fun fetchDataForNewEntries(oldCodes: List<String>, newCodes: List<String>) = viewModelScope.launch {
-       repository.fetchAndStoreRatesForNewEntries(oldCodes, newCodes)
+    
+    suspend fun fetchDataForNewEntries(oldCodes: List<String>, newCodes: List<String>) =
+        viewModelScope.launch {
+            repository.fetchAndStoreRatesForNewEntries(oldCodes, newCodes)
+        }
+    val codes = repository.getCodes()
+    
+    val _availableCurrencies: MutableStateFlow<List<CurrencyWithName>> =
+        MutableStateFlow(emptyList())
+    val availableCurrencies: StateFlow<List<CurrencyWithName>> = _availableCurrencies.asStateFlow()
+    fun fetchAllAvailableCurrencies(){
+       viewModelScope.launch {
+            val result = repository.fetchAllAvailableCurrencies().fold(
+                onSuccess = {
+                    _availableCurrencies.update {it}
+                },
+                onFailure = {
+                   _availableCurrencies.update { emptyList() }
+                }
+            )
+       }
     }
     
-    //get all rates for selected currency
-    val selectedCurrency: StateFlow<String> = repository.getSelectedCurrency().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = "" // Provide an appropriate initial value
-    )
     
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val ratesForSelectedCurrency: Flow<List<CurrencyWithRate>> =
-        selectedCurrency.flatMapLatest { currency ->
-            if (currency == "") {
-                flowOf(emptyList())
-            } else {
-                repository.getRatesForSelectedCurrency(currency)
+    private val _ratesBySelectedCode = MutableStateFlow<List<CurrencyWithRate>>(emptyList())
+    val ratesBySelectedCode: StateFlow<List<CurrencyWithRate>> = _ratesBySelectedCode.asStateFlow()
+    
+    fun updateSelectionOfRate(selectedCode: String) {
+        viewModelScope.launch {
+            repository.getRatesForSelectedCurrency(selectedCode).collect { rates ->
+                _ratesBySelectedCode.value = rates
             }
         }
-    
-    fun getRateOneShot(code: String): List<CurrencyWithRate> {
-        return repository.getRatesOneShot(code)
-    }
-    
-    
-    fun selectCode(code: String) = viewModelScope.launch {
-        repository.selectCode(code)
-    }
-    
-    fun getListOfSelectedCodes(): Flow<List<ChosenCurrency>> {
-        return repository.getSelectedCodes()
-    }
-    
-    //delete currency
-    fun deleteCurrency(code: String) = viewModelScope.launch {
-        repository.deleteCurrency(code)
     }
     
     //add currency
@@ -103,24 +95,12 @@ class CurrencyViewModel(private val repository: CurrencyRepository) : ViewModel(
             repository.addCurrencies(oldCodes, newCodes)
         }
     
-    val getAllAvailableCurrencies:Flow<List<CurrencyWithName>> = flow<List<CurrencyWithName>> {
-        emit(repository.fetchAllAvailableCurrencies())
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
-    
-    
-    //set date of query
-    fun setDateOfQuery(date: String) = viewModelScope.launch {
-        repository.setDateOfQuery(date)
-    }
     
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            Log.v("ViewModelInit", "GETS HERE")
+            Log.v("ViewModelInit", "View model is created")
             fetchAndStoreAllRatesIfOutdated()
+            
         }
     }
     
