@@ -22,7 +22,7 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
-class CurrencyViewModel(private val repository: CurrencyRepository, private val connectivityRepository: ConnectivityRepository,private val prefsHelper: SharedPrefsHelper) : ViewModel() {
+class CurrencyViewModel(private val repository: CurrencyRepository, private val connectivityRepository: ConnectivityRepository,/*private val prefsHelper: SharedPrefsHelper*/) : ViewModel() {
 //    private fun isApiResponseOutdated(apiDate:String): Boolean {
 //
 //        val oldDate = prefsHelper.getDateOfLastQuery()
@@ -126,12 +126,12 @@ class CurrencyViewModel(private val repository: CurrencyRepository, private val 
         }
     }
     
-    class WordViewModelFactory(private val repository: CurrencyRepository, private val connectivityRepository: ConnectivityRepository,private val prefsHelper: SharedPrefsHelper) :
+    class WordViewModelFactory(private val repository: CurrencyRepository, private val connectivityRepository: ConnectivityRepository,/*private val prefsHelper: SharedPrefsHelper*/) :
         ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(CurrencyViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return CurrencyViewModel(repository, connectivityRepository,prefsHelper) as T
+                return CurrencyViewModel(repository, connectivityRepository,/*prefsHelper*/) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

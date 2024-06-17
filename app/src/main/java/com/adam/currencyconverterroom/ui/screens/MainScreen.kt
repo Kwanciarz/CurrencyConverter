@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.adam.currencyconverterroom.data.CurrencyViewModel
 import com.adam.currencyconverterroom.data.CurrencyWithRate
@@ -77,7 +76,7 @@ fun MainScreen(viewModel: CurrencyViewModel, navController: NavController) {
         ) {
             RowWithAmount(amount, { newAmount -> viewModel.updateAmount(newAmount) }, selectedCode)
             Spacer(modifier = Modifier.height(16.dp))
-            ListOfRates(rates, amount, internetState, updateSelectedCode, navController,viewModel)
+            ListOfRates(rates, amount, internetState, updateSelectedCode, navController, viewModel)
         }
     }
 }
@@ -112,7 +111,7 @@ fun ListOfRates(
 ) {
     LazyColumn {
         items(rates) {
-            RateItem(it, amount, updateSelectedCode,viewModel)
+            RateItem(it, amount, updateSelectedCode, viewModel, rates.size>1)
             Spacer(modifier = Modifier.height(8.dp)) // Spacing between rate items
         }
         item {
@@ -124,7 +123,13 @@ fun ListOfRates(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RateItem(rate: CurrencyWithRate, amount: String, updateSelectedCode: (String) -> Unit, viewModel: CurrencyViewModel) {
+fun RateItem(
+    rate: CurrencyWithRate,
+    amount: String,
+    updateSelectedCode: (String) -> Unit,
+    viewModel: CurrencyViewModel,
+    displayDeleteButton: Boolean
+) {
     val decimalFormat = DecimalFormat("#.##") // Format to two decimal places
     val amountDouble = amount.toDoubleOrNull()
     Card(
@@ -148,8 +153,10 @@ fun RateItem(rate: CurrencyWithRate, amount: String, updateSelectedCode: (String
                 decimalFormat.format(amountDouble * value)
             } else "_"
             Text(textOfConvertedCurrency)
-            IconButton(onClick = {viewModel.deleteCurrency(rate.target)}) {
-                Icon(Icons.Rounded.Delete, "Delete ${rate.target}")
+            if (displayDeleteButton) {
+                IconButton(onClick = { viewModel.deleteCurrency(rate.target) }) {
+                    Icon(Icons.Rounded.Delete, "Delete ${rate.target}")
+                }
             }
         }
     }
