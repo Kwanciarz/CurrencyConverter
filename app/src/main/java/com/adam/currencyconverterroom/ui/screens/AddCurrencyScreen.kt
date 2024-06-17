@@ -1,5 +1,6 @@
 package com.adam.currencyconverterroom.ui.screens
 
+import androidx.collection.floatListOf
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,26 +12,47 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavHostController
 import com.adam.currencyconverterroom.data.CurrencyViewModel
 import com.adam.currencyconverterroom.data.CurrencyWithName
+import com.adam.currencyconverterroom.data.CurrencyWithRate
+import kotlinx.coroutines.launch
+
 
 @Composable
 fun AddCurrencyScreen(viewModel: CurrencyViewModel, navController: NavHostController) {
-    viewModel.fetchAllAvailableCurrencies()
-    var listOfCurrenciesToAddState = viewModel.availableCurrencies.collectAsState()
-    var listOfCurrenciesToAdd by remember { mutableStateOf(listOfCurrenciesToAddState.value.toMutableList()) }
+    LaunchedEffect(Unit) {
+        viewModel.fetchAllAvailableCurrencies()
+    }
+    val listOfCurrenciesToAddState by viewModel.availableCurrencies.collectAsStateWithLifecycle()
     val listOfExistingCurrencies by viewModel.codes.collectAsState(initial = emptyList())
     var searchText by remember { mutableStateOf("") }
-    var currenciesToAdd by remember { mutableStateOf(listOf<CurrencyWithName>())}
-    
+    val currenciesToAdd = remember { mutableStateListOf<String>()}
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (currenciesToAdd.isNotEmpty()) {
+                viewModel.viewModelScope.launch {
+                    viewModel.fetchDataForNewEntries(
+                        listOfExistingCurrencies,
+                        currenciesToAdd
+                    )
+                }
+            }
+        }
+    }
     Column {
         // Text Field for Search
         TextField(
@@ -43,48 +65,43 @@ fun AddCurrencyScreen(viewModel: CurrencyViewModel, navController: NavHostContro
         )
         // Filtered List
         ListOfCurrencies(
-            listOfCurrenciesToAdd,
-          
-            listOfExistingCurrencies,
-            currenciesToAdd.map{it.base},
-            {
-                listOfCurrenciesToAdd += it
+            listOfCurrenciesToAddState,
+            { code ->
+                currenciesToAdd.add(code)
             },
+            listOfExistingCurrencies,
+            currenciesToAdd,
+            searchText
         )
     }
-
-
-//    DisposableEffect(Unit) {
-////        onDispose {
-////            if (listOfCurrenciesToAdd.isNotEmpty()) {
-////                viewModel.viewModelScope.launch {
-////                    viewModel.fetchDataForNewEntries(
-////                        addedCurrencies.map { it.base },
-////                        listOfCurrenciesToAdd
-////                    )
-////                }
-////            }
-////        }
-//    }
 }
 
 
 @Composable
 fun ListOfCurrencies(
     currencies: List<CurrencyWithName>,
+    onCurrencyAdded: (String) -> Unit,
     addedCurrencies: List<String>,
     currenciesToAdd: List<String>,
-    onCurrencyAdded: (String) -> Unit
-
+    searchText:String
 ) {
+    
+    val filteredCurrencies = if (searchText.isBlank()) {currencies.filterNot {
+        it.base in addedCurrencies || it.base in currenciesToAdd
+    }
+    } else {
+        currencies.filterNot {
+            it.base in addedCurrencies || it.base in currenciesToAdd
+        }.filter {
+            it.base.contains(searchText, ignoreCase = true) ||
+                    it.name.contains(searchText, ignoreCase = true)
+        }
+    }
     LazyColumn {
 //        item{
-//            Text(text = "${addedCurrencies.toString()} \n ${currenciesToAdd.toString()} ")
+//            Text(text = "${currencies.toString()} \n${addedCurrencies.toString()} \n ${currenciesToAdd.toString()} ")
 //        }
-        items(currencies.filterNot {
-            it.base in addedCurrencies ||
-                    it.base in currenciesToAdd
-        }) { currencyToAdd ->
+        items(filteredCurrencies) { currencyToAdd ->
             CurrencyToAddCard(
                 currencyToAdd,
                 onCurrencyAdded = onCurrencyAdded

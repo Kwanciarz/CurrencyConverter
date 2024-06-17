@@ -12,6 +12,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.adam.currencyconverter.ui.screens.MainScreen
 import com.adam.currencyconverterroom.data.CurrencyViewModel
+import com.adam.currencyconverterroom.data.remote.ConnectivityRepository
 import com.adam.currencyconverterroom.ui.screens.AddCurrencyScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -29,7 +30,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CurrencyConverterApp() {
     val navController = rememberNavController()
-    val viewModel: CurrencyViewModel = viewModel(factory = CurrencyViewModel.WordViewModelFactory((LocalContext.current.applicationContext as CurrencyConverterApplication).repository))
+    val viewModel: CurrencyViewModel = viewModel(factory = CurrencyViewModel.WordViewModelFactory((LocalContext.current.applicationContext as CurrencyConverterApplication).repository,
+        ConnectivityRepository(LocalContext.current)
+    ))
 
     NavHost(navController, startDestination = "main_screen") {
         composable("main_screen") { MainScreen(viewModel,navController) }
