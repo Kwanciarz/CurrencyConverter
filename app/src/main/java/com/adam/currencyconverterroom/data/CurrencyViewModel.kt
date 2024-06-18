@@ -1,6 +1,7 @@
 package com.adam.currencyconverterroom.data
 
 import android.util.Log
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -95,6 +97,7 @@ class CurrencyViewModel(private val repository: CurrencyRepository, private val 
         }
     }
     
+    
     fun deleteCurrency(code:String)=
         viewModelScope.launch {
             repository.deleteByCode(code)
@@ -106,7 +109,7 @@ class CurrencyViewModel(private val repository: CurrencyRepository, private val 
 //            repository.addCurrencies(oldCodes, newCodes)
 //        }
     
-    private val _amount = MutableStateFlow("10.0")
+    private val _amount = MutableStateFlow("10")
     val amount: StateFlow<String> = _amount.asStateFlow()
     
     // Function to update the amount in the ViewModel
