@@ -17,50 +17,82 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
-class CurrencyViewModel(private val repository: CurrencyRepository, private val connectivityRepository: ConnectivityRepository,/*private val prefsHelper: SharedPrefsHelper*/) : ViewModel() {
-//    private fun isApiResponseOutdated(apiDate:String): Boolean {
+class CurrencyViewModel(private val repository: CurrencyRepository, private val connectivityRepository: ConnectivityRepository,private val prefsHelper: SharedPrefsHelper) : ViewModel() {
+    
+//    private fun isApiResponseOutdated(): Boolean {
+//        val lastFetchDateStr = prefsHelper.getLastFetchDate()
+//        if (lastFetchDateStr.isEmpty()) return true
 //
-//        val oldDate = prefsHelper.getDateOfLastQuery()
+//        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+//        val lastFetchDate = sdf.parse(lastFetchDateStr) ?: return true
+//        val today = Date()
 //
-//        val formatter = DateTimeFormatter.ISO_DATE
-//        val oldDateParsed = LocalDate.parse(oldDate, formatter)
+//        // Check if it's a working day (Mon-Fri) AND past 16:00 CET
+//        val cet = TimeZone.getTimeZone("CET")
+//        val calendar = Calendar.getInstance(cet)
+//        calendar.time = today
+//        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+//        val isWorkingDay = dayOfWeek in Calendar.MONDAY..Calendar.FRIDAY
+//        val hourOfDay = calendar.get(Calendar.HOUR_OF_DAY)
+//        val isPastRefreshTime = hourOfDay >= 16
 //
+//        // Outdated if:
+//        // 1. It's a working day, past refresh time, and last fetch was BEFORE today
+//        // 2. OR, it's a working day, past refresh time, and last fetch was TODAY but BEFORE 16:00 CET
+//        // 3. OR, last fetch was before the last working day
+//        return (isWorkingDay && isPastRefreshTime && lastFetchDate.before(today)) ||
+//                (isWorkingDay && isPastRefreshTime && sameDay(lastFetchDate, today) && !isAfterRefreshTime(lastFetchDate)) ||
+//                lastFetchDate.before(getLastWorkingDay(today))
+//    }
 //
-//        // Get current time in CET
-//        val cetZone = ZoneId.of("CET")
+//    // Helper functions
+//    private fun sameDay(date1: Date, date2: Date): Boolean {
+//        val cal1 = Calendar.getInstance().apply { time = date1}
+//        val cal2 = Calendar.getInstance().apply { time = date2 }
+//        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+//                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+//    }
 //
-//        // Check if today is a working day
-//        if (nowCet.dayOfWeek == DayOfWeek.SATURDAY || nowCet.dayOfWeek == DayOfWeek.SUNDAY) {
-//            return true // Data might not be fresh on weekends
-//        }
+//    private fun isAfterRefreshTime(date: Date): Boolean {
+//        val cet = TimeZone.getTimeZone("CET")
+//        val calendar = Calendar.getInstance(cet).apply { time = date }
+//        return calendar.get(Calendar.HOUR_OF_DAY) >= 16
+//    }
 //
-//        // Check if API response date is today and if it's past 16:00 CET
-//        return if (apiDate == nowCet.toLocalDate() && nowCet.toLocalTime()
-//                .isAfter(LocalTime.of(16, 0))
-//        ) {
-//            false // Data is likely fresh
-//        } else {
-//            true // Data might be outdated
-//        }
+//    private fun getLastWorkingDay(date: Date): Date {
+//        val calendar = Calendar.getInstance()
+//        calendar.time = date
+//
+//        do {
+//            calendar.add(Calendar.DAY_OF_MONTH, -1)
+//        } while (calendar.get(Calendar.DAY_OF_WEEK) in arrayOf(Calendar.SATURDAY, Calendar.SUNDAY))
+//
+//        return calendar.time
 //    }
     
     suspend fun fetchAndStoreAllRatesIfOutdated(/*listOfCodes: List<String>*/) =
         viewModelScope.launch {
-            if (true) { //isApiResponseOutdated TODO check it
+            if (true){
                 val listOfCodes = repository.getCodes().first()
-                Log.v(
-                    "ViewModelFetch",
-                    "List of codes while fetching data${listOfCodes.toString()}"
-                )
                 repository.fetchAndStoreAllRates(listOfCodes)
+                val currentDateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                prefsHelper.saveLastFetchDate(currentDateStr)
+                Log.v("ViewModelFetch","Fetched")
             }
+            
+            Log.v("ViewModelFetch","Outside")
         }
     
     suspend fun fetchDataForNewEntries(oldCodes: List<String>, newCodes: List<String>) =
@@ -76,7 +108,6 @@ class CurrencyViewModel(private val repository: CurrencyRepository, private val 
        viewModelScope.launch {
             repository.fetchAllAvailableCurrencies().fold(
                 onSuccess = { nameList ->
-                    Log.d("ViewModel", "Fetched currencies: $nameList")
                     _availableCurrencies.update {nameList}
                 },
                 onFailure = {
@@ -124,17 +155,16 @@ class CurrencyViewModel(private val repository: CurrencyRepository, private val 
     
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            Log.v("ViewModelInit", "View model is created")
             fetchAndStoreAllRatesIfOutdated()
         }
     }
     
-    class WordViewModelFactory(private val repository: CurrencyRepository, private val connectivityRepository: ConnectivityRepository,/*private val prefsHelper: SharedPrefsHelper*/) :
+    class WordViewModelFactory(private val repository: CurrencyRepository, private val connectivityRepository: ConnectivityRepository,private val prefsHelper: SharedPrefsHelper) :
         ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             if (modelClass.isAssignableFrom(CurrencyViewModel::class.java)) {
                 @Suppress("UNCHECKED_CAST")
-                return CurrencyViewModel(repository, connectivityRepository,/*prefsHelper*/) as T
+                return CurrencyViewModel(repository, connectivityRepository,prefsHelper) as T
             }
             throw IllegalArgumentException("Unknown ViewModel class")
         }

@@ -13,11 +13,13 @@ class SharedPrefsHelper(context: Context) {
         return prefs.getString("selected_code", defaultCode) ?: defaultCode
     }
     
-    fun saveDateOfQuery(date: String) {
-        prefs.edit().putString("date_query", date).apply()
+    fun saveLastFetchDate(date: String) {
+        prefs.edit().putString("last_fetch_date", date).apply()
     }
     
-    fun getDateOfLastQuery(): String {
-        return prefs.getString("date_query", "1970-01-01") ?: "1970-01-01"
+    fun getLastFetchDate(): String {
+        return prefs.getString("last_fetch_date", "") ?: ""
+        
     }
+
 }
